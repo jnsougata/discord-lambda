@@ -1,7 +1,6 @@
 package discord
 
 import (
-	"bytes"
 	"crypto/ed25519"
 	"encoding/hex"
 	"encoding/json"
@@ -40,34 +39,32 @@ func (c *Client) AddCommands(commands ...Command) {
 	c.commands = append(c.commands, commands...)
 }
 
-func (c *Client) RegisterCommands() error {
-	// TODO: temporary will add bulk register later
+func (c *Client) RegisterCommands() int {
+	var commands []map[string]interface{}
 	for _, command := range c.commands {
-		b, err := json.Marshal(command.marshal())
-		if err != nil {
-			return err
-		}
-		req, _ := http.NewRequest("POST", fmt.Sprintf("https://discord.com/api/v10/applications/%s/commands", c.applicationId), bytes.NewReader(b))
-		req.Header.Set("Authorization", fmt.Sprintf("Bot %s", c.token))
-		req.Header.Set("Content-Type", "application/json")
-		resp, err := http.DefaultClient.Do(req)
-		fmt.Println(resp.StatusCode)
-		if err != nil {
-			return err
-		}
+		commands = append(commands, command.marshal())
 	}
-	return nil
+	data, _ := json.Marshal(commands)
+	r := Request{
+		Method:  "PUT",
+		Body:    data,
+		Token:   c.token,
+		Headers: map[string]string{"Content-Type": "application/json"},
+		Path:    fmt.Sprintf("/applications/%s/commands", c.applicationId),
+	}
+	resp, _ := r.Do()
+	return resp.StatusCode
 }
 
 func (c *Client) Run(port int) {
 	if c.token == "" {
-		panic("DiscordToken is required")
+		panic("Discord Bot Token is required")
 	}
 	if c.publickey == "" {
-		panic("DiscordPublicKey is required")
+		panic("Discord Bot PublicKey is required")
 	}
 	if c.applicationId == "" {
-		panic("DiscordApplicationID is required")
+		panic("Discord Bot ApplicationID is required")
 	}
 	var ep string
 	if c.path != "" {
@@ -102,20 +99,20 @@ func (c *Client) handleInteractionPOST(ctx echo.Context) error {
 		_, err := w.Write([]byte("invalid request signature"))
 		return err
 	}
-	var data map[string]interface{}
-	_ = json.Unmarshal(ba, &data)
-	interactionType := data["type"].(float64)
-	switch interactionType {
+	var inter Interaction
+	_ = json.Unmarshal(ba, &inter)
+	switch inter.Type {
+	// ping
 	case 1:
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 		resp, _ := json.Marshal(map[string]interface{}{"type": 1})
 		_, err := w.Write(resp)
 		return err
-	default:
-		// add interaction struct later
+	// application command
+	case 2:
 		w.WriteHeader(http.StatusOK)
-		d, _ := json.Marshal(map[string]interface{}{
+		data, _ := json.Marshal(map[string]interface{}{
 			"type": 4,
 			"data": map[string]interface{}{
 				"content": "pong!",
@@ -123,11 +120,14 @@ func (c *Client) handleInteractionPOST(ctx echo.Context) error {
 		})
 		r := Request{
 			Method:  "POST",
-			Path:    fmt.Sprintf("/interactions/%s/%s/callback", data["id"].(string), data["token"].(string)),
-			Body:    d,
+			Body:    data,
+			Path:    fmt.Sprintf("/interactions/%s/%s/callback", inter.Id, inter.Token),
 			Headers: map[string]string{"Content-Type": "application/json"},
 		}
 		_, err := r.Do()
 		return err
+	default:
+		w.WriteHeader(http.StatusOK)
+		return nil
 	}
 }
