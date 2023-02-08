@@ -49,13 +49,17 @@ func (s *SubCommand) marshal() map[string]interface{} {
 }
 
 type Command struct {
-	Id          string
-	Type        CommandTye
-	Name        string
-	Description string
-	Options     []Option
-	subcommands []SubCommand
-	Handler     func() map[string]interface{}
+	Id           string
+	Type         CommandTye
+	Name         string
+	Description  string
+	Options      []Option
+	GuildId      string
+	DefaultPerms int
+	AllowInDMs   bool
+	NSFW         bool
+	subcommands  []SubCommand
+	Callback     func(interaction *Interaction) map[string]interface{}
 }
 
 func (c *Command) AddSubCommand(subcommand SubCommand) {
@@ -63,16 +67,30 @@ func (c *Command) AddSubCommand(subcommand SubCommand) {
 }
 
 func (c *Command) marshal() map[string]interface{} {
-	d := map[string]interface{}{
-		"name":        c.Name,
-		"description": c.Description,
-		"options":     []map[string]interface{}{},
+	payload := map[string]interface{}{
+		"name":                       c.Name,
+		"type":                       c.Type,
+		"nsfw":                       c.NSFW,
+		"description":                c.Description,
+		"dm_permissions":             c.AllowInDMs,
+		"default_member_permissions": c.DefaultPerms,
+		"options":                    []map[string]interface{}{},
 	}
+	var ops []map[string]interface{}
 	for _, option := range c.Options {
-		d["options"] = append(d["options"].([]map[string]interface{}), option.marshal())
+		ops = append(ops, option.marshal())
 	}
+	payload["options"] = ops
+	var scs []map[string]interface{}
 	for _, subcommand := range c.subcommands {
-		d["options"] = append(d["options"].([]map[string]interface{}), subcommand.marshal())
+		scs = append(scs, subcommand.marshal())
 	}
-	return d
+	payload["options"] = append(payload["options"].([]map[string]interface{}), scs...)
+	if c.Id != "" {
+		payload["id"] = c.Id
+	}
+	if c.GuildId != "" {
+		payload["guild_id"] = c.GuildId
+	}
+	return payload
 }

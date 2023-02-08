@@ -16,8 +16,10 @@ type Client struct {
 	publickey     string
 	applicationId string
 	path          string
-	commands      []Command
 	router        *echo.Echo
+	queue         []Command
+	commands      map[string]Command
+	callbacks     map[string]interface{}
 }
 
 func New(applicationId, publickey, token string) *Client {
@@ -26,7 +28,9 @@ func New(applicationId, publickey, token string) *Client {
 		publickey:     publickey,
 		token:         token,
 		router:        echo.New(),
-		commands:      []Command{},
+		queue:         []Command{},
+		commands:      map[string]Command{},
+		callbacks:     map[string]interface{}{},
 		path:          "/interactions",
 	}
 }
@@ -35,16 +39,26 @@ func (c *Client) SetPath(path string) {
 	c.path = path
 }
 
-func (c *Client) AddCommands(commands ...Command) {
-	c.commands = append(c.commands, commands...)
+func (c *Client) DefaultRouter() *echo.Echo {
+	return c.router
 }
 
-func (c *Client) RegisterCommands() int {
-	var commands []map[string]interface{}
-	for _, command := range c.commands {
-		commands = append(commands, command.marshal())
+func (c *Client) AddCommands(commands ...Command) {
+	for _, command := range commands {
+		if command.Id == "" {
+			c.commands[command.Id] = command
+		}
 	}
-	data, _ := json.Marshal(commands)
+	c.queue = append(c.queue, commands...)
+}
+
+func (c *Client) RegisterCommands() []map[string]interface{} {
+	var payload []map[string]interface{}
+	for _, cmd := range c.queue {
+		payload = append(payload, cmd.marshal())
+	}
+	fmt.Println(payload)
+	data, _ := json.Marshal(payload)
 	r := Request{
 		Method:  "PUT",
 		Body:    data,
@@ -53,7 +67,10 @@ func (c *Client) RegisterCommands() int {
 		Path:    fmt.Sprintf("/applications/%s/commands", c.applicationId),
 	}
 	resp, _ := r.Do()
-	return resp.StatusCode
+	ba, _ := io.ReadAll(resp.Body)
+	var res []map[string]interface{}
+	_ = json.Unmarshal(ba, &res)
+	return res
 }
 
 func (c *Client) Run(port int) {
@@ -112,20 +129,10 @@ func (c *Client) handleInteractionPOST(ctx echo.Context) error {
 	// application command
 	case 2:
 		w.WriteHeader(http.StatusOK)
-		data, _ := json.Marshal(map[string]interface{}{
+		return inter.SendResponse(map[string]interface{}{
 			"type": 4,
-			"data": map[string]interface{}{
-				"content": "pong!",
-			},
+			"data": map[string]interface{}{"content": "pong"},
 		})
-		r := Request{
-			Method:  "POST",
-			Body:    data,
-			Path:    fmt.Sprintf("/interactions/%s/%s/callback", inter.Id, inter.Token),
-			Headers: map[string]string{"Content-Type": "application/json"},
-		}
-		_, err := r.Do()
-		return err
 	default:
 		w.WriteHeader(http.StatusOK)
 		return nil
