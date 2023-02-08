@@ -57,7 +57,6 @@ func (c *Client) RegisterCommands() []map[string]interface{} {
 	for _, cmd := range c.queue {
 		payload = append(payload, cmd.marshal())
 	}
-	fmt.Println(payload)
 	data, _ := json.Marshal(payload)
 	r := Request{
 		Method:  "PUT",
