@@ -128,10 +128,8 @@ func (c *Client) handleInteractionPOST(ctx echo.Context) error {
 	// application command
 	case 2:
 		w.WriteHeader(http.StatusOK)
-		return inter.SendResponse(map[string]interface{}{
-			"type": 4,
-			"data": map[string]interface{}{"content": "pong"},
-		})
+		_ = inter.Defer(true)
+		return inter.Reply(map[string]interface{}{"content": "pong"})
 	default:
 		w.WriteHeader(http.StatusOK)
 		return nil
