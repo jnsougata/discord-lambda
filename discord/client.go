@@ -41,6 +41,7 @@ func (c *client) AddCommands(commands ...Command) {
 }
 
 func (c *client) RegisterCommands() error {
+	// temporary .. will add bulk register later
 	for _, command := range c.commands {
 		b, err := json.Marshal(command.marshal())
 		if err != nil {
@@ -102,28 +103,31 @@ func (c *client) handleInteractionPOST(ctx echo.Context) error {
 		return err
 	}
 	var data map[string]interface{}
-	json.Unmarshal(ba, &data)
+	_ = json.Unmarshal(ba, &data)
 	interactionType := data["type"].(float64)
 	switch interactionType {
 	case 1:
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
-		resp, _ := json.Marshal(map[string]interface{}{
-			"type": 1,
-		})
+		resp, _ := json.Marshal(map[string]interface{}{"type": 1})
 		_, err := w.Write(resp)
 		return err
 	default:
-		fmt.Println("ping command")
+		// add interaction struct later
 		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "application/json")
-		resp, _ := json.Marshal(map[string]interface{}{
+		d, _ := json.Marshal(map[string]interface{}{
 			"type": 4,
 			"data": map[string]interface{}{
 				"content": "pong!",
 			},
 		})
-		_, err := w.Write(resp)
+		r := Request{
+			Method:  "POST",
+			Path:    fmt.Sprintf("/interactions/%s/%s/callback", data["id"].(string), data["token"].(string)),
+			Body:    d,
+			Headers: map[string]string{"Content-Type": "application/json"},
+		}
+		_, err := r.Do()
 		return err
 	}
 }
