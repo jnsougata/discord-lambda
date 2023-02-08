@@ -12,7 +12,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type client struct {
+type Client struct {
 	token         string
 	publickey     string
 	applicationId string
@@ -21,8 +21,8 @@ type client struct {
 	router        *echo.Echo
 }
 
-func New(applicationId, publickey, token string) *client {
-	return &client{
+func New(applicationId, publickey, token string) *Client {
+	return &Client{
 		applicationId: applicationId,
 		publickey:     publickey,
 		token:         token,
@@ -32,16 +32,16 @@ func New(applicationId, publickey, token string) *client {
 	}
 }
 
-func (c *client) SetPath(path string) {
+func (c *Client) SetPath(path string) {
 	c.path = path
 }
 
-func (c *client) AddCommands(commands ...Command) {
+func (c *Client) AddCommands(commands ...Command) {
 	c.commands = append(c.commands, commands...)
 }
 
-func (c *client) RegisterCommands() error {
-	// temporary .. will add bulk register later
+func (c *Client) RegisterCommands() error {
+	// TODO: temporary will add bulk register later
 	for _, command := range c.commands {
 		b, err := json.Marshal(command.marshal())
 		if err != nil {
@@ -59,7 +59,7 @@ func (c *client) RegisterCommands() error {
 	return nil
 }
 
-func (c *client) Run(port int) {
+func (c *Client) Run(port int) {
 	if c.token == "" {
 		panic("DiscordToken is required")
 	}
@@ -81,14 +81,14 @@ func (c *client) Run(port int) {
 	e.Logger.Fatal(e.Start(fmt.Sprintf(":%d", port)))
 }
 
-func (c *client) handleInteractionGET(ctx echo.Context) error {
+func (c *Client) handleInteractionGET(ctx echo.Context) error {
 	w := ctx.Response()
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte("OK"))
 	return err
 }
 
-func (c *client) handleInteractionPOST(ctx echo.Context) error {
+func (c *Client) handleInteractionPOST(ctx echo.Context) error {
 	r := ctx.Request()
 	w := ctx.Response()
 	ba, _ := io.ReadAll(r.Body)
