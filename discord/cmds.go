@@ -1,4 +1,4 @@
-package main
+package discord
 
 type Choice struct {
 	Name  string
@@ -55,6 +55,7 @@ type Command struct {
 	Description string
 	Options     []Option
 	subcommands []SubCommand
+	Handler     func() map[string]interface{}
 }
 
 func (c *Command) AddSubCommand(subcommand SubCommand) {

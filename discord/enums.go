@@ -1,4 +1,4 @@
-package main
+package discord
 
 type CommandTye int
 type OptionType int
