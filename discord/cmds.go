@@ -59,7 +59,7 @@ type Command struct {
 	AllowInDMs   bool
 	NSFW         bool
 	subcommands  []SubCommand
-	Callback     func(interaction *Interaction) map[string]interface{}
+	Callback     func(ctx *CommandContext) error
 }
 
 func (c *Command) AddSubCommand(subcommand SubCommand) {

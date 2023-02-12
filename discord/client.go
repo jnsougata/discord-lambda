@@ -45,7 +45,7 @@ func (c *Client) DefaultRouter() *echo.Echo {
 
 func (c *Client) AddCommands(commands ...Command) {
 	for _, command := range commands {
-		if command.Id == "" {
+		if command.Id != "" {
 			c.commands[command.Id] = command
 		}
 	}
@@ -91,7 +91,24 @@ func (c *Client) Run(port int) {
 	e := echo.New()
 	e.POST(ep, c.handleInteractionPOST)
 	e.GET(ep, c.handleInteractionGET)
+	e.GET("/sync/:token", c.handleSync)
 	e.Logger.Fatal(e.Start(fmt.Sprintf(":%d", port)))
+}
+
+func (c *Client) handleSync(ctx echo.Context) error {
+	if ctx.Param("token") != c.token {
+		w := ctx.Response()
+		w.WriteHeader(http.StatusUnauthorized)
+		_, err := w.Write([]byte("Unauthorized"))
+		return err
+	}
+	data := c.RegisterCommands()
+	w := ctx.Response()
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	ba, _ := json.MarshalIndent(data, "", "  ")
+	_, err := w.Write(ba)
+	return err
 }
 
 func (c *Client) handleInteractionGET(ctx echo.Context) error {
@@ -117,19 +134,25 @@ func (c *Client) handleInteractionPOST(ctx echo.Context) error {
 	}
 	var inter Interaction
 	_ = json.Unmarshal(ba, &inter)
+	inter.client = c
 	switch inter.Type {
-	// ping
 	case 1:
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 		resp, _ := json.Marshal(map[string]interface{}{"type": 1})
 		_, err := w.Write(resp)
 		return err
-	// application command
 	case 2:
 		w.WriteHeader(http.StatusOK)
-		_ = inter.Defer(true)
-		return inter.Reply(map[string]interface{}{"content": "pong"})
+		var cmd AppCommand
+		cd, _ := json.Marshal(inter.Data)
+		_ = json.Unmarshal(cd, &cmd)
+		cc := CommandContext{inter: &inter, Command: &cmd}
+		f, exists := c.commands[cmd.Id]
+		if exists {
+			return f.Callback(&cc)
+		}
+		return nil
 	default:
 		w.WriteHeader(http.StatusOK)
 		return nil
