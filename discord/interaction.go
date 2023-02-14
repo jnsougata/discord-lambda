@@ -5,19 +5,9 @@ import (
 	"fmt"
 )
 
-type AppCommand struct {
-	Id          string   `json:"id"`
-	Application string   `json:"application_id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Options     []Option `json:"options"`
-	GuildId     string   `json:"guild_id"`
-	TargetId    string   `json:"target_id"`
-}
-
 type CommandContext struct {
 	inter     *Interaction
-	Command   *AppCommand
+	Command   *Command
 	Responded bool
 }
 

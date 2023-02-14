@@ -1,8 +1,8 @@
 package discord
 
 type Choice struct {
-	Name  string
-	Value interface{}
+	Name  string      `json:"name"`
+	Value interface{} `json:"value"`
 }
 
 func (c *Choice) marshal() map[string]interface{} {
@@ -13,11 +13,14 @@ func (c *Choice) marshal() map[string]interface{} {
 }
 
 type Option struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Type        int      `json:"type"`
-	Required    bool     `json:"required"`
-	Choices     []Choice `json:"choices"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Type        OptionType `json:"type"`
+	Required    bool       `json:"required"`
+	Choices     []Choice   `json:"choices"`
+	Value       string     `json:"value"`
+	Options     []Option   `json:"options"`
+	Focused     bool       `json:"focused"`
 }
 
 func (o *Option) marshal() map[string]interface{} {
@@ -49,17 +52,19 @@ func (s *SubCommand) marshal() map[string]interface{} {
 }
 
 type Command struct {
-	Id           string
-	Type         CommandTye
-	Name         string
-	Description  string
-	Options      []Option
-	GuildId      string
-	DefaultPerms int
-	AllowInDMs   bool
-	NSFW         bool
-	subcommands  []SubCommand
-	Callback     func(ctx *CommandContext) error
+	Id           string                          `json:"id,omitempty"`
+	Type         CommandTye                      `json:"type"`
+	Name         string                          `json:"name"`
+	Description  string                          `json:"description"`
+	Options      []Option                        `json:"options"`
+	GuildId      string                          `json:"guild_id,omitempty"`
+	DefaultPerms int                             `json:"default_member_permissions,omitempty"`
+	AllowInDMs   bool                            `json:"dm_permissions,omitempty"`
+	NSFW         bool                            `json:"nsfw,omitempty"`
+	TargetId     string                          `json:"target_id,omitempty"`
+	Resolved     map[string]interface{}          `json:"resolved,omitempty"`
+	subcommands  []SubCommand                    `json:"-"`
+	Callback     func(ctx *CommandContext) error `json:"-"`
 }
 
 func (c *Command) AddSubCommand(subcommand SubCommand) {
@@ -75,6 +80,12 @@ func (c *Command) marshal() map[string]interface{} {
 		"dm_permissions":             c.AllowInDMs,
 		"default_member_permissions": c.DefaultPerms,
 		"options":                    []map[string]interface{}{},
+	}
+	if c.Type == 0 {
+		panic("command type not set!")
+	}
+	if c.Type != 1 && c.Description != "" {
+		panic("command description can only be set for slash commands")
 	}
 	var ops []map[string]interface{}
 	for _, option := range c.Options {

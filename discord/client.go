@@ -144,7 +144,7 @@ func (c *Client) handleInteractionPOST(ctx echo.Context) error {
 		return err
 	case 2:
 		w.WriteHeader(http.StatusOK)
-		var cmd AppCommand
+		var cmd Command
 		cd, _ := json.Marshal(inter.Data)
 		_ = json.Unmarshal(cd, &cmd)
 		cc := CommandContext{inter: &inter, Command: &cmd}
